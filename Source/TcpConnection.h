@@ -19,8 +19,8 @@ namespace SocketLib
         TcpConnection(std::shared_ptr<asio::ip::tcp::socket> socket_)
             : socket(std::move(socket_))
         {
-            port = socket->remote_endpoint().port();
-            address = socket->remote_endpoint().address().to_string();
+            endpoint = socket->remote_endpoint().address().to_string() + ":" + std::to_string(socket->remote_endpoint().port());
+
             write_perf_thread = std::thread([&]()
                 {
                     while (!shutdown)
@@ -47,6 +47,15 @@ namespace SocketLib
                 });
         }
 
+        ~TcpConnection()
+        {
+            shutdown = true;
+            if (read_perf_thread.joinable())
+                read_perf_thread.join();
+            if (write_perf_thread.joinable())
+                write_perf_thread.join();
+        }
+
         void start_reading()
         {
             socket->async_read_some(asio::buffer(read_buffer, 4),
@@ -60,16 +69,16 @@ namespace SocketLib
                 });
         }
 
-        void write(const unsigned char* packet, const int& length)
+        void write(const std::shared_ptr<PacketData>& packet)
         {
-            asio::error_code ec;
-            asio::write(*socket, asio::buffer(packet, length), ec);
+            asio::write(*socket, asio::buffer(packet->data.get(), packet->length));
+            message_sent_callback(packet);
             write_counter++;
         }
 
         std::function<void(const std::shared_ptr<PacketData>&)> message_received_callback;
-        std::string address;
-        unsigned short port;
+        std::function<void(const std::shared_ptr<PacketData>&)> message_sent_callback;
+        std::string endpoint;
 
     private:
         void read_body(int length)
@@ -80,26 +89,23 @@ namespace SocketLib
                     if (!ec)
                     {
                         std::vector<unsigned char> buffer(std::begin(read_buffer), std::end(read_buffer));
-                        const auto packet_data = std::make_shared<PacketData>(buffer.data(), _length);
-                        message_received_callback(packet_data);
+                        auto endpoint = socket->remote_endpoint().address().to_string() + ":" + std::to_string(socket->remote_endpoint().port());
+                        const auto packet_data = std::make_shared<PacketData>(buffer.data(), _length, endpoint);
                         read_counter++;
+                        message_received_callback(packet_data);
                     }
                 });
             start_reading();
         }
 
         std::shared_ptr<asio::ip::tcp::socket> socket;
-
         unsigned char read_buffer[MAX_MESSAGE_SIZE];
-
-        std::unique_ptr<std::thread> socket_read_thread;
+        bool shutdown = false;
 
         int write_counter = 0;
         std::thread write_perf_thread;
         int read_counter = 0;
         std::thread read_perf_thread;
-
-        bool shutdown = false;
     };
 }
 #endif

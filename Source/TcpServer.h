@@ -14,8 +14,7 @@ namespace SocketLib
     {
     public:
         TcpServer(int port)
-            : acceptor(context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)),
-            client_id_count(0)
+            : acceptor(context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port))
         {}
         virtual ~TcpServer() {}
 
@@ -23,6 +22,16 @@ namespace SocketLib
         {
             service_thread = std::thread([&]() {begin_accept(); });
             on_started(acceptor.local_endpoint().address().to_string(), acceptor.local_endpoint().port());
+        }
+
+        void write(const std::shared_ptr<PacketData>& packet)
+        {
+            connected_clients[packet->endpoint]->write(packet);
+        }
+
+        std::map<std::string, std::shared_ptr<TcpConnection>> clients() const
+        {
+            return connected_clients;
         }
 
     protected:
@@ -61,8 +70,9 @@ namespace SocketLib
 
             auto tcp_client = std::make_shared<TcpConnection>(client_socket);
             tcp_client->message_received_callback = [this](const std::shared_ptr<PacketData>& data) { on_message_received(data); };
+            tcp_client->message_sent_callback = [this](const std::shared_ptr<PacketData>& packet) { on_message_sent(packet); };
             tcp_client->start_reading();
-            connected_clients.emplace(++client_id_count, tcp_client);
+            connected_clients.emplace(tcp_client->endpoint, tcp_client);
 
             on_new_connection(tcp_client);
             begin_accept();
@@ -70,11 +80,9 @@ namespace SocketLib
 
         asio::io_context context;
         asio::ip::tcp::acceptor acceptor;
-        std::map<int, std::shared_ptr<TcpConnection>> connected_clients;
+        std::map<std::string, std::shared_ptr<TcpConnection>> connected_clients;
 
         std::thread service_thread;
-
-        int client_id_count;
     };
 }
 #endif

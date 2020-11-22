@@ -16,19 +16,26 @@ namespace SocketLib
 
         void connect(const std::string& address, const unsigned short port)
         {
-            auto socket = std::make_shared<asio::ip::tcp::socket>(context);
+            socket = std::make_shared<asio::ip::tcp::socket>(context);
             asio::ip::tcp::resolver resolver(context);
             asio::connect(*socket, resolver.resolve(address, std::to_string(port)));
-            server_connection = std::make_shared<TcpConnection>(std::move(socket));
-            on_connected(server_connection);
-            server_connection->message_received_callback = [&](const std::shared_ptr<PacketData>& packet) { on_message_received(packet); };
+            server_connection = std::make_shared<TcpConnection>(socket);
+            server_connection->message_received_callback = [this](const std::shared_ptr<PacketData>& packet) { on_message_received(packet); };
+            server_connection->message_sent_callback = [this](const std::shared_ptr<PacketData>& packet) { on_message_sent(packet); };
             server_connection->start_reading();
+            service_thread = std::thread([&]() {context.run(); });
+            on_connected(server_connection);
         }
 
-        void send(const std::shared_ptr<PacketData>& data)
+        void send(const std::shared_ptr<PacketData>& packet)
         {
-            server_connection->write(data->data.get(), data->length);
-            on_message_sent(data);
+            server_connection->write(packet);
+            on_message_sent(packet);
+        }
+
+        [[nodiscard]] std::string server_endpoint() const
+        {
+            return server_connection->endpoint;
         }
 
     protected:
@@ -50,7 +57,9 @@ namespace SocketLib
 
     private:
         asio::io_context context;
+        std::shared_ptr<asio::ip::tcp::socket> socket;
         std::shared_ptr<TcpConnection> server_connection;
+        std::thread service_thread;
     };
 }
 #endif

@@ -1,6 +1,7 @@
 #ifndef PACKET_DATA_H
 #define PACKET_DATA_H
 #include <cstring>
+#include <utility>
 
 namespace SocketLib
 {
@@ -8,6 +9,7 @@ namespace SocketLib
     {
         std::unique_ptr<unsigned char[]> data;
         size_t length = 0;
+        std::string endpoint;
 
         PacketData() = default;
 
@@ -15,8 +17,9 @@ namespace SocketLib
             : length(_length)
         {}
 
-        PacketData(unsigned char* _data, const int _length)
-            : length(_length)
+        PacketData(unsigned char* _data, const int _length, std::string _endpoint)
+            : length(_length),
+              endpoint(std::move(_endpoint))
         {
             data = std::make_unique<unsigned char[]>(length);
             memcpy(data.get(), _data, length);

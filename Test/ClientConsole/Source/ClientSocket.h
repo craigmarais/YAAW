@@ -13,10 +13,14 @@ public:
 protected:
     void on_connected(const std::shared_ptr<SocketLib::TcpConnection> new_connection) override
     {
-        std::cout << new_connection->address << ":" << new_connection->port << " Connected" << std::endl;
+        std::cout << "Connected to: " << new_connection->endpoint << std::endl;
     }
     void on_message_received(const std::shared_ptr<SocketLib::PacketData>& packet) override
     {
-        std::cout << "Message recieved in derived." << std::endl;
+        //std::cout << "Message recieved from connection: " << packet->endpoint << std::endl;
+    }
+    void on_message_sent(const std::shared_ptr<SocketLib::PacketData>& data) override
+    {
+        //std::cout << "Message sent to connection: " << data->endpoint << std::endl;
     }
 };
