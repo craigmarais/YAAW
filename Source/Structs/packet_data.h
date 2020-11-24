@@ -3,29 +3,27 @@
 #include <cstring>
 #include <utility>
 
-namespace SocketLib
+namespace sl
 {
-    struct PacketData
+    struct packet_data
     {
         std::unique_ptr<unsigned char[]> data;
         size_t length = 0;
         std::string endpoint;
 
-        PacketData() = default;
+        packet_data() = default;
 
-        PacketData(const int _length)
+        packet_data(const int _length)
             : length(_length)
         {}
 
-        PacketData(unsigned char* _data, const int _length, std::string _endpoint)
+        packet_data(unsigned char* _data, const int _length, std::string _endpoint)
             : length(_length),
               endpoint(std::move(_endpoint))
         {
             data = std::make_unique<unsigned char[]>(length);
             memcpy(data.get(), _data, length);
         }
-
-        ~PacketData() = default;
 
         void set_length(int length_)
         {

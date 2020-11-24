@@ -1,7 +1,7 @@
 #ifndef CONSTANT_H
 #define CONSTANT_H
 
-namespace SocketLib
+namespace sl
 {
     const int LISTEN_PORT = 5543;
     const int NUM_ACCEPTING_THREADS = 2;

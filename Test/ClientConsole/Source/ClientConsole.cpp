@@ -17,7 +17,7 @@ int main()
         memcpy(&packet[0], &length, sizeof(int));
         memcpy(&packet[sizeof(int)], &p, sizeof(Person));
 
-        const auto data = std::make_shared<SocketLib::PacketData>(packet, sizeof(p) + sizeof(int), cs.server_endpoint());
+        const auto data = std::make_shared<sl::packet_data>(packet, sizeof(p) + sizeof(int), cs.server_endpoint());
 
         cs.send(data);
     }

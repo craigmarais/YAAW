@@ -1,22 +1,22 @@
 #ifndef SOCKET_LIB
 #define SOCKET_LIB
-#include "TcpConnection.h"
-#include "Structs/PacketData.h"
+#include "tcp_connection.h"
+#include "Structs/packet_data.h"
 
 #include <map>
 #include <asio.hpp>
 #include <iostream>
 
 
-namespace SocketLib
+namespace sl
 {
-    class TcpServer
+    class tcp_server
     {
     public:
-        TcpServer(int port)
+        tcp_server(int port)
             : acceptor(context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port))
         {}
-        virtual ~TcpServer() {}
+        virtual ~tcp_server() {}
 
         void run()
         {
@@ -24,26 +24,26 @@ namespace SocketLib
             on_started(acceptor.local_endpoint().address().to_string(), acceptor.local_endpoint().port());
         }
 
-        void write(const std::shared_ptr<PacketData>& packet)
+        void write(const std::shared_ptr<packet_data>& packet)
         {
             connected_clients[packet->endpoint]->write(packet);
         }
 
-        std::map<std::string, std::shared_ptr<TcpConnection>> clients() const
+        [[nodiscard]] std::map<std::string, std::shared_ptr<tcp_connection>> clients() const
         {
             return connected_clients;
         }
 
     protected:
-        virtual void on_new_connection(const std::shared_ptr<TcpConnection> new_connection)
+        virtual void on_new_connection(const std::shared_ptr<tcp_connection> new_connection)
         {
             std::cout << "new connection in base.\n";
         }
 
-        virtual void on_message_received(const std::shared_ptr<PacketData>& data)
+        virtual void on_message_received(const std::shared_ptr<packet_data>& data)
         {}
 
-        virtual void on_message_sent(const std::shared_ptr<PacketData>& data)
+        virtual void on_message_sent(const std::shared_ptr<packet_data>& data)
         {}
 
         virtual void on_error(const std::runtime_error& error)
@@ -55,6 +55,17 @@ namespace SocketLib
         {
             std::cout << "Server started on: " << address << ":" << port << std::endl;
         }
+
+        [[nodiscard]] size_t read_queue_size(std::string endpoint)
+        {
+            return connected_clients[endpoint]->read_queue.size();
+        }
+
+        [[nodiscard]] size_t write_queue_size(std::string endpoint)
+        {
+            return connected_clients[endpoint]->write_queue.size();
+        }
+        std::map<std::string, std::shared_ptr<tcp_connection>> connected_clients;
 
     private:
         void begin_accept()
@@ -68,9 +79,9 @@ namespace SocketLib
         {
             client_socket->set_option(asio::ip::tcp::no_delay(true));
 
-            auto tcp_client = std::make_shared<TcpConnection>(client_socket);
-            tcp_client->message_received_callback = [this](const std::shared_ptr<PacketData>& data) { on_message_received(data); };
-            tcp_client->message_sent_callback = [this](const std::shared_ptr<PacketData>& packet) { on_message_sent(packet); };
+            auto tcp_client = std::make_shared<tcp_connection>(client_socket);
+            tcp_client->message_received_callback = [this](const std::shared_ptr<packet_data>& data) { on_message_received(data); };
+            tcp_client->message_sent_callback = [this](const std::shared_ptr<packet_data>& packet) { on_message_sent(packet); };
             tcp_client->start_reading();
             connected_clients.emplace(tcp_client->endpoint, tcp_client);
 
@@ -80,7 +91,6 @@ namespace SocketLib
 
         asio::io_context context;
         asio::ip::tcp::acceptor acceptor;
-        std::map<std::string, std::shared_ptr<TcpConnection>> connected_clients;
 
         std::thread service_thread;
     };

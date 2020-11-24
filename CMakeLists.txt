@@ -36,10 +36,10 @@ set_target_properties(SocketLib PROPERTIES LINKER_LANGUAGE CXX)
 target_link_libraries(SocketLib -lpthread)
 
 file(STRINGS "Source/Constant.h" Constant_H)
-file(STRINGS "Source/TcpClient.h" TcpClient_H)
-file(STRINGS "Source/TcpConnection.h" TcpConnection_H)
-file(STRINGS "Source/TcpServer.h" TcpServer_H)
-file(STRINGS "Source/Structs/PacketData.h" PacketData_H)
+file(STRINGS "Source/tcp_client.h" TcpClient_H)
+file(STRINGS "Source/tcp_connection.h" TcpConnection_H)
+file(STRINGS "Source/tcp_server.h" TcpServer_H)
+file(STRINGS "Source/Structs/packet_data.h" PacketData_H)
 
 list(APPEND SOCKETLIB_SINGLE
     "${Constant_H}"
