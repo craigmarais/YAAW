@@ -10,7 +10,7 @@
 
 #include "Constant.h"
 #include "Structs/packet_data.h"
-#include "concurrent_queue.h"
+#include "concurrentqueue.h"
 
 namespace sl
 {
@@ -40,16 +40,16 @@ namespace sl
 
         void write(const std::shared_ptr<packet_data>& packet)
         {
-            std::lock_guard<std::mutex> lock(write_mutex);
-            write_queue.push(packet);
+            if (write_queue.size_approx() < 1'000'000)
+                write_queue.enqueue(packet);
         }
 
         std::function<void(const std::shared_ptr<packet_data>&)> message_received_callback;
         std::function<void(const std::shared_ptr<packet_data>&)> message_sent_callback;
         std::string endpoint;
 
-        std::queue<std::shared_ptr<packet_data>> read_queue;
-        std::queue<std::shared_ptr<packet_data>> write_queue;
+        moodycamel::ConcurrentQueue<std::shared_ptr<packet_data>> read_queue;
+        moodycamel::ConcurrentQueue<std::shared_ptr<packet_data>> write_queue;
 
     private:
         void read_body(int length)
@@ -63,8 +63,7 @@ namespace sl
                         auto endpoint = socket->remote_endpoint().address().to_string() + ":" + std::to_string(socket->remote_endpoint().port());
                         const auto packet = std::make_shared<packet_data>(buffer.data(), _length, endpoint);
                         {
-                            std::lock_guard<std::mutex> lock(read_mutex);
-                            read_queue.push(packet);
+                            read_queue.enqueue(packet);
                         }
                     }
                 });
@@ -75,18 +74,12 @@ namespace sl
         {
             while(!shutdown)
             {
-                if (read_queue.empty())
+                std::shared_ptr<packet_data> packet;
+                while(read_queue.try_dequeue(packet))
                 {
-                    std::this_thread::sleep_for(std::chrono::microseconds(10));
-                    continue;
-                }
-                while(!read_queue.empty())
-                {
-                    std::lock_guard<std::mutex> lock(read_mutex);
-                    auto packet = read_queue.front();
                     message_received_callback(packet);
-                    read_queue.pop();
                 }
+                std::this_thread::sleep_for(std::chrono::microseconds(10));
             }
         }
 
@@ -94,31 +87,20 @@ namespace sl
         {
             while (!shutdown)
             {
-                if (write_queue.empty())
+                std::shared_ptr<packet_data> packet;
+                while (write_queue.try_dequeue(packet))
                 {
-                    std::this_thread::sleep_for(std::chrono::microseconds(10));
-                    continue;
-                }
-                while (!write_queue.empty())
-                {
-                    std::lock_guard<std::mutex> lock(write_mutex);
-                    auto packet = write_queue.front();
-
                     asio::write(*socket, asio::buffer(packet->data.get(), packet->length));
                     message_sent_callback(packet);
-
-                    write_queue.pop();
                 }
+                std::this_thread::sleep_for(std::chrono::microseconds(10));
             }
         }
 
         std::shared_ptr<asio::ip::tcp::socket> socket;
         unsigned char read_buffer[MAX_MESSAGE_SIZE];
 
-        std::mutex read_mutex;
         std::thread read_thread;
-
-        std::mutex write_mutex;
         std::thread write_thread;
         bool shutdown = false;
     };

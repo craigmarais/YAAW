@@ -20,8 +20,8 @@ namespace sl
             asio::ip::tcp::resolver resolver(context);
             asio::connect(*socket, resolver.resolve(address, std::to_string(port)));
             server_connection = std::make_shared<tcp_connection>(socket);
-            server_connection->message_received_callback = [this](const std::shared_ptr<packet_data>& packet) { on_message_received(packet); };
-            server_connection->message_sent_callback = [this](const std::shared_ptr<packet_data>& packet) { on_message_sent(packet); };
+            server_connection->message_received_callback = [&](const std::shared_ptr<packet_data>& packet) { on_message_received(packet); };
+            server_connection->message_sent_callback = [&](const std::shared_ptr<packet_data>& packet) { on_message_sent(packet); };
             server_connection->start_reading();
             service_thread = std::thread([&]() {context.run(); });
             on_connected(server_connection);
@@ -30,7 +30,6 @@ namespace sl
         void send(const std::shared_ptr<packet_data>& packet)
         {
             server_connection->write(packet);
-            on_message_sent(packet);
         }
 
         [[nodiscard]] std::string server_endpoint() const
@@ -41,7 +40,7 @@ namespace sl
     protected:
         virtual void on_connected(const std::shared_ptr<tcp_connection> new_connection)
         {
-            std::cout << "Connected to server in base.\n";
+            std::cout << "Connected to server: " << new_connection->endpoint << ".\n";
         }
 
         virtual void on_message_received(const std::shared_ptr<packet_data>& data)
@@ -52,16 +51,16 @@ namespace sl
 
         virtual void on_error(const std::runtime_error& error)
         {
-            std::cout << "An error has occurred in base.\n";
+            std::cout << "An error has occurred in base. error: " << error.what() << "\n";
         }
         [[nodiscard]] size_t read_queue_size()
         {
-            return server_connection->read_queue.size();
+            return server_connection->read_queue.size_approx();
         }
 
         [[nodiscard]] size_t write_queue_size()
         {
-            return server_connection->write_queue.size();
+            return server_connection->write_queue.size_approx();
         }
 
     private:

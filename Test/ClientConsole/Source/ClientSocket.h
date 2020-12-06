@@ -1,5 +1,6 @@
 #pragma once
 #include "SocketLib.h"
+#include "Person.h"
 #include <iostream>
 
 class ClientSocket : public sl::tcp_client
@@ -46,6 +47,22 @@ protected:
     void on_connected(const std::shared_ptr<sl::tcp_connection> new_connection) override
     {
         std::cout << "Connected to: " << new_connection->endpoint << std::endl;
+
+        while (true)
+        {
+            Person p{};
+            p.id = 1;
+            p.name = { 'C','r','a','i','g',' ','M','a','r','a','i','s' };
+
+            unsigned char packet[sizeof(Person) + sizeof(int)];
+            auto length = sizeof(Person);
+            memcpy(&packet[0], &length, sizeof(int));
+            memcpy(&packet[sizeof(int)], &p, sizeof(Person));
+
+            const auto data = std::make_shared<sl::packet_data>(packet, sizeof(p) + sizeof(int), server_endpoint());
+
+            send(data);
+        }
     }
     void on_message_received(const std::shared_ptr<sl::packet_data>& packet) override
     {

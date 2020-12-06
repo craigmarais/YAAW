@@ -47,7 +47,7 @@ public:
 protected:
     void on_started(const std::string& address, const unsigned short port) override
     {
-        std::cout << "Server socket is listening on: " << address << std::to_string(port) << std::endl;
+        std::cout << "Server socket is listening on: " << address << ":" << std::to_string(port) << std::endl;
     }
     void on_new_connection(const std::shared_ptr<sl::tcp_connection> new_connection) override
     {
@@ -61,7 +61,7 @@ protected:
         //const std::string name(person->name.begin(), std::find(person->name.begin(), person->name.end(), '\0'));
         //std::cout << "id: " << person->id << ", name: " << name << std::endl;
 
-        //write(packet);
+        write(packet);
     }
     void on_message_sent(const std::shared_ptr<sl::packet_data>& data) override
     {

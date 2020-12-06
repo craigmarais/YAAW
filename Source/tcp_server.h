@@ -56,14 +56,14 @@ namespace sl
             std::cout << "Server started on: " << address << ":" << port << std::endl;
         }
 
-        [[nodiscard]] size_t read_queue_size(std::string endpoint)
+        [[nodiscard]] size_t read_queue_size(const std::string endpoint)
         {
-            return connected_clients[endpoint]->read_queue.size();
+            return connected_clients[endpoint]->read_queue.size_approx();
         }
 
-        [[nodiscard]] size_t write_queue_size(std::string endpoint)
+        [[nodiscard]] size_t write_queue_size(const std::string endpoint)
         {
-            return connected_clients[endpoint]->write_queue.size();
+            return connected_clients[endpoint]->write_queue.size_approx();
         }
         std::map<std::string, std::shared_ptr<tcp_connection>> connected_clients;
 
@@ -80,8 +80,8 @@ namespace sl
             client_socket->set_option(asio::ip::tcp::no_delay(true));
 
             auto tcp_client = std::make_shared<tcp_connection>(client_socket);
-            tcp_client->message_received_callback = [this](const std::shared_ptr<packet_data>& data) { on_message_received(data); };
-            tcp_client->message_sent_callback = [this](const std::shared_ptr<packet_data>& packet) { on_message_sent(packet); };
+            tcp_client->message_received_callback = [&](const std::shared_ptr<packet_data>& data) { on_message_received(data); };
+            tcp_client->message_sent_callback = [&](const std::shared_ptr<packet_data>& packet) { on_message_sent(packet); };
             tcp_client->start_reading();
             connected_clients.emplace(tcp_client->endpoint, tcp_client);
 
